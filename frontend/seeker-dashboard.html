@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Applications — JobPortal</title>
+  <meta name="description" content="Track all your job applications on JobPortal.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">⚡ JobPortal</span>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<div class="dashboard-header">
+  <h1 id="greeting">Seeker Dashboard</h1>
+  <p>Track the status of all your job applications.</p>
+</div>
+
+<!-- ── Stats ── -->
+<div class="stats-row" id="stats-row"></div>
+
+<!-- ── Applications Table ── -->
+<div class="section" style="padding-top:0">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="section-title" style="margin-bottom:0">My Applications</h2>
+    <a href="jobs.html" class="btn btn-primary btn-sm">+ Browse Jobs</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Job Title</th>
+          <th>Company</th>
+          <th>Location</th>
+          <th>Applied On</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="app-table-body">
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  // Redirect if not a seeker
+  const user = requireLogin('seeker');
+  if (user) {
+    renderNav();
+    document.getElementById('greeting').textContent = 'Welcome, ' + user.name + ' 👋';
+
+    async function loadApplications() {
+      const res  = await apiFetch('/my-applications');
+      const apps = await res.json();
+
+      const stats = document.getElementById('stats-row');
+      const total       = apps.length;
+      const shortlisted = apps.filter(a => a.status === 'Shortlisted').length;
+      const rejected    = apps.filter(a => a.status === 'Rejected').length;
+
+      stats.innerHTML = `
+        <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">Total Applied</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--success)">${shortlisted}</div><div class="stat-label">Shortlisted</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--danger)">${rejected}</div><div class="stat-label">Rejected</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--warn)">${total - shortlisted - rejected}</div><div class="stat-label">Pending</div></div>
+      `;
+
+      const tbody = document.getElementById('app-table-body');
+      if (!apps.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="big">📭</div>No applications yet. <a href="jobs.html">Browse jobs →</a></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = apps.map((a, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${a.jobTitle || '—'}</strong></td>
+          <td>${a.company || '—'}</td>
+          <td>${a.location || '—'}</td>
+          <td>${formatDate(a.appliedDate)}</td>
+          <td><span class="${badgeClass(a.status)}">${a.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    loadApplications();
+  }
+</script>
+</body>
+</html>

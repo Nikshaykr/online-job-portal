@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — JobPortal</title>
+  <meta name="description" content="Admin panel to manage users and jobs on JobPortal.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">⚡ JobPortal</span>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<div class="dashboard-header">
+  <h1>Admin Panel</h1>
+  <p>Manage all users and job listings on the platform.</p>
+</div>
+
+<!-- ── Stats ── -->
+<div class="stats-row" id="stats-row"></div>
+
+<!-- ── Tabs ── -->
+<div style="padding: 0 5% 24px; display:flex; gap:8px; border-bottom:1px solid var(--surface2); margin-bottom:24px;">
+  <button id="tab-users" class="btn btn-primary btn-sm" onclick="showTab('users')">👥 All Users</button>
+  <button id="tab-jobs"  class="btn btn-outline btn-sm" onclick="showTab('jobs')">💼 All Jobs</button>
+</div>
+
+<!-- ── Users Panel ── -->
+<div id="panel-users" class="section" style="padding-top:0">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Email</th><th>Role</th></tr>
+      </thead>
+      <tbody id="users-body">
+        <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Jobs Panel ── -->
+<div id="panel-jobs" class="section" style="padding-top:0;display:none">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Title</th><th>Company</th><th>Location</th><th>Type</th><th>Posted</th><th>Action</th></tr>
+      </thead>
+      <tbody id="jobs-body">
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  const user = requireLogin('admin');
+  if (user) {
+    renderNav();
+
+    function showTab(tab) {
+      document.getElementById('panel-users').style.display = tab === 'users' ? 'block' : 'none';
+      document.getElementById('panel-jobs').style.display  = tab === 'jobs'  ? 'block' : 'none';
+      document.getElementById('tab-users').className = tab === 'users' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+      document.getElementById('tab-jobs').className  = tab === 'jobs'  ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    }
+
+    const roleBadge = r => {
+      const colors = { seeker: '#818cf8', employer: '#34d399', admin: '#f87171' };
+      return `<span class="badge" style="background:rgba(255,255,255,.1);color:${colors[r]||'#fff'}">${r}</span>`;
+    };
+
+    async function loadAll() {
+      // Load users
+      const uRes   = await apiFetch('/admin/users');
+      const users  = await uRes.json();
+      const jRes   = await apiFetch('/admin/jobs');
+      const jobs   = await jRes.json();
+
+      // Render stats
+      document.getElementById('stats-row').innerHTML = `
+        <div class="stat-card"><div class="stat-value">${users.length}</div><div class="stat-label">Total Users</div></div>
+        <div class="stat-card"><div class="stat-value">${jobs.length}</div><div class="stat-label">Total Jobs</div></div>
+        <div class="stat-card"><div class="stat-value">${users.filter(u=>u.role==='seeker').length}</div><div class="stat-label">Job Seekers</div></div>
+        <div class="stat-card"><div class="stat-value">${users.filter(u=>u.role==='employer').length}</div><div class="stat-label">Employers</div></div>
+      `;
+
+      // Render users table
+      document.getElementById('users-body').innerHTML = users.map((u, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td><strong>${u.name}</strong></td>
+          <td>${u.email}</td>
+          <td>${roleBadge(u.role)}</td>
+        </tr>
+      `).join('');
+
+      // Render jobs table
+      document.getElementById('jobs-body').innerHTML = jobs.map((j, i) => `
+        <tr id="job-row-${j.id}">
+          <td>${i+1}</td>
+          <td><strong>${j.title}</strong></td>
+          <td>${j.company}</td>
+          <td>${j.location}</td>
+          <td><span class="tag">${j.type}</span></td>
+          <td>${formatDate(j.postedDate)}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="deleteJob(${j.id})">🗑 Delete</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteJob(id) {
+      if (!confirm('Delete this job? This cannot be undone.')) return;
+      const res = await apiFetch('/admin/jobs/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        const row = document.getElementById('job-row-' + id);
+        if (row) row.remove();
+      } else {
+        alert('Failed to delete job.');
+      }
+    }
+
+    loadAll();
+  }
+</script>
+</body>
+</html>
