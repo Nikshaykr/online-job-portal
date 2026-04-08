@@ -1,129 +1,110 @@
-# 🚀 Online Job Portal
+# Online Job Portal
 
-A full-stack Online Job Portal web application built as a BCA final year college project.
+A comprehensive web-based platform designed to facilitate the job recruitment process. This project was developed as part of the BCA final year curriculum to demonstrate full-stack development capabilities using Java Spring Boot and vanilla web technologies.
 
-**Built by:** Deepak Rajpoot & Nikshay Kumar Singh  
-**College:** Gagan College of Management & Technology, Aligarh  
-**Course:** Bachelor of Computer Application (2023-26)
-
----
-
-## 📌 Features
-
-- ✅ Register and Login for 3 user roles (Job Seeker, Employer, Admin)
-- ✅ Employers can post job listings
-- ✅ Job Seekers can search, filter and apply for jobs
-- ✅ Employers can view applicants and shortlist/reject them
-- ✅ Application status tracking for job seekers
-- ✅ Admin panel to manage all users and jobs
-- ✅ Resume upload for job seekers (PDF/DOCX)
-- ✅ Clean dark-themed responsive UI
+**Project Contributors:** Deepak Rajpoot & Nikshay Kumar Singh  
+**Institution:** Gagan College of Management & Technology, Aligarh  
+**Batch:** 2023-2026
 
 ---
 
-## 🛠️ Tech Stack
+## Core Functionality
 
-| Layer | Technology |
-|---|---|
-| Frontend | HTML5, CSS3, JavaScript |
-| Backend | Java 21, Spring Boot 3.2 |
-| Database | MySQL 8.0 |
-| ORM | Spring Data JPA + Hibernate |
-| Build Tool | Maven |
+*   **Role-Based Access Control:** Secure login and registration for Job Seekers, Employers, and Administrators.
+*   **Job Management:** Employers can create, update, and manage job listings.
+*   **Application Lifecycle:** Job seekers can search for opportunities, apply with resumes, and track their application status in real-time.
+*   **Applicant Tracking:** Employers can review candidate profiles, download resumes, and update application statuses (Shortlisted/Rejected).
+*   **Administration:** A dedicated dashboard for managing system users and monitoring active job listings.
+*   **Resume Support:** Integration for PDF and DOCX file uploads for candidate profiles.
 
 ---
 
-## 📁 Project Structure
+## Technical Specifications
 
-```
+| Component | Technology |
+|:---|:---|
+| **Frontend** | HTML5, CSS3 (Custom Styles), JavaScript (ES6+) |
+| **Backend** | Java 21, Spring Boot 3.2 |
+| **Database** | MySQL 8.0 |
+| **Persistence** | Spring Data JPA / Hibernate |
+| **Build Tool** | Maven 3.9+ |
+
+---
+
+## Project Architecture
+
+```text
 job-portal/
-├── backend/               ← Spring Boot Maven project
-│   ├── pom.xml
-│   └── src/main/
-│       ├── java/com/jobportal/
-│       │   ├── model/         User.java, Job.java, Application.java
-│       │   ├── repository/    UserRepository, JobRepository, ApplicationRepository
-│       │   ├── controller/    AuthController, JobController, ApplicationController, AdminController
-│       │   └── config/        CorsConfig.java
-│       └── resources/
-│           └── application.properties.example
-└── frontend/              ← Static HTML pages
-    ├── index.html
-    ├── register.html
-    ├── login.html
-    ├── jobs.html
-    ├── seeker-dashboard.html
-    ├── employer-dashboard.html
-    ├── admin-dashboard.html
-    ├── style.css
-    └── app.js
+├── backend/               # Spring Boot Application
+│   ├── src/main/java/     # Source code (MVC Pattern)
+│   └── src/main/resources/# Configuration & Properties
+└── frontend/              # User Interface
+    ├── *.html             # Specialized views for Seeker, Employer, and Admin
+    ├── style.css          # Design and Layout
+    └── app.js             # Client-side logic and API integration
 ```
 
 ---
 
-## ⚙️ How to Run
+## Installation and Setup
 
-### Prerequisites
-- Java 21
-- Maven
-- MySQL 8.0
-- VS Code with Live Server extension
-
-### Step 1 — Setup Database
+### 1. Database Initialization
+Create a new MySQL schema for the application:
 ```sql
 CREATE DATABASE job_portal;
 ```
 
-### Step 2 — Configure application.properties
+### 2. Environment Configuration
+Navigate to the backend configuration directory:
 ```bash
 cd backend/src/main/resources
 cp application.properties.example application.properties
-# Edit application.properties and set your MySQL password
+# Configure your MySQL credentials in application.properties
 ```
 
-### Step 3 — Start Backend
+### 3. Execution
+**Starting the Backend:**
 ```bash
 cd backend
 mvn spring-boot:run
 ```
-Backend runs at `http://localhost:8080`
+*The server will initialize at `http://localhost:8080`*
 
-### Step 4 — Start Frontend
-Open `frontend/index.html` with VS Code Live Server.  
-Frontend runs at `http://127.0.0.1:5500`
+**Launching the Frontend:**
+Open `frontend/index.html` using a local web server (e.g., VS Code Live Server).
+*Default URL: `http://127.0.0.1:5500`*
 
-### Step 5 — Seed Admin User
+### 4. Administrative Setup
+To access the admin panel, seed the initial administrator account:
 ```sql
 USE job_portal;
 INSERT INTO users (name, email, password, role)
-VALUES ('Admin', 'admin@portal.com', 'admin123', 'admin');
+VALUES ('System Admin', 'admin@portal.com', 'admin123', 'admin');
 ```
 
 ---
 
-## 👥 Test Accounts
+## Access Credentials
 
-| Role | Email | Password |
-|---|---|---|
-| Job Seeker | seeker@test.com | 123 |
-| Employer | employer@test.com | 123 |
-| Admin | admin@portal.com | admin123 |
+| Role | Username / Email | Password |
+|:---|:---|:---|
+| **Administrator** | admin@portal.com | admin123 |
+| **Employer** | employer@test.com | 123 |
+| **Job Seeker** | seeker@test.com | 123 |
 
 ---
 
-## 📡 API Endpoints
+## API Documentation
 
-| Method | URL | Access | Description |
-|---|---|---|---|
-| POST | /register | Public | Register new user |
-| POST | /login | Public | Login |
-| POST | /logout | Any | Logout |
-| GET | /jobs | Public | Get all jobs |
-| POST | /jobs/add | Employer | Post a job |
-| POST | /apply | Seeker | Apply to a job |
-| GET | /my-applications | Seeker | Get my applications |
-| GET | /job-applicants/{id} | Employer | View applicants |
-| POST | /update-status | Employer | Shortlist/Reject |
-| GET | /admin/users | Admin | All users |
-| GET | /admin/jobs | Admin | All jobs |
-| DELETE | /admin/jobs/{id} | Admin | Delete job |
+| Method | Endpoint | Access | Purpose |
+|:---|:---|:---|:---|
+| POST | `/register` | Public | User Account Creation |
+| POST | `/login` | Public | Authentication |
+| GET | `/jobs` | Public | Browse Listings |
+| POST | `/jobs/add` | Employer | Create Job Posting |
+| POST | `/apply` | Seeker | Submit Application |
+| GET | `/my-applications` | Seeker | View Personal History |
+| GET | `/job-applicants/{id}`| Employer | Review Applications |
+| POST | `/update-status` | Employer | Selection Management |
+| GET | `/admin/users` | Admin | User Auditing |
+| DELETE | `/admin/jobs/{id}` | Admin | Content Moderation |
