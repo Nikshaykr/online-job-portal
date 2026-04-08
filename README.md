@@ -35,13 +35,11 @@ A comprehensive web-based platform designed to facilitate the job recruitment pr
 
 ```text
 job-portal/
-├── backend/               # Spring Boot Application
-│   ├── src/main/java/     # Source code (MVC Pattern)
-│   └── src/main/resources/# Configuration & Properties
-└── frontend/              # User Interface
-    ├── *.html             # Specialized views for Seeker, Employer, and Admin
-    ├── style.css          # Design and Layout
-    └── app.js             # Client-side logic and API integration
+└── backend/                   # Main Application Root
+    ├── src/main/java/         # Backend Source (API & Logic)
+    └── src/main/resources/
+        ├── static/            # Integrated Frontend (HTML, CSS, JS)
+        └── application.properties
 ```
 
 ---
