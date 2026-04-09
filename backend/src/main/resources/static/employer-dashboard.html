@@ -85,11 +85,11 @@
       <div id="post-success" style="color:var(--success);margin-bottom:12px;display:none;"></div>
       <form id="post-form" onsubmit="handlePostJob(event)">
         <div class="form-group"><label>Job Title</label><input id="p-title" placeholder="e.g. Frontend Developer"
-            required></div>
-        <div class="form-group"><label>Company Name</label><input id="p-company" placeholder="e.g. Acme Corp" required>
+            minlength="3" title="Must be at least 3 characters" required></div>
+        <div class="form-group"><label>Company Name</label><input id="p-company" placeholder="e.g. Acme Corp" minlength="2" required>
         </div>
         <div class="form-group"><label>Location</label><input id="p-location" placeholder="e.g. Bangalore, Remote"
-            required></div>
+            minlength="2" required></div>
         <div class="form-group">
           <label>Job Type</label>
           <select id="p-type" required>
