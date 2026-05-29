@@ -87,7 +87,7 @@ VALUES ('System Admin', 'admin@portal.com', 'admin123', 'admin');
 | Role | Username / Email | Password |
 |:---|:---|:---|
 | **Administrator** | admin@portal.com | admin123 |
-| **Employer** | employer@test.com | 123 |
+| **Employer** | employer@test.com | 123 |  
 | **Job Seeker** | seeker@test.com | 123 |
 
 ---
