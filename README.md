@@ -2,7 +2,7 @@
 
 A comprehensive web-based platform designed to facilitate the job recruitment process. This project was developed as part of the BCA final year curriculum to demonstrate full-stack development capabilities using Java Spring Boot and vanilla web technologies.
 
-**Project Contributors:** Deepak Rajpoot & Nikshay Kumar Singh  
+**Project Contributors:** Nikshay Kumar Singh  
 **Institution:** Gagan College of Management & Technology, Aligarh  
 **Batch:** 2023-2026
 
