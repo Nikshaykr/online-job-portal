@@ -6,6 +6,7 @@ import com.jobportal.repository.JobRepository;
 import com.jobportal.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +15,13 @@ import java.util.*;
 
 @RestController
 @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+// can use @RequiredArgsConstructor for automatic dependency injection instead of using @Autowired multiple times
+@RequiredArgsConstructor
 public class ApplicationController {
 
-    @Autowired private ApplicationRepository applicationRepository;
-    @Autowired private JobRepository         jobRepository;
-    @Autowired private UserRepository        userRepository;
+    private ApplicationRepository applicationRepository;
+    private JobRepository         jobRepository;
+    private UserRepository        userRepository;
 
     // Helper: get userId from header or session
     private Long resolveUserId(HttpServletRequest request, HttpSession session) {

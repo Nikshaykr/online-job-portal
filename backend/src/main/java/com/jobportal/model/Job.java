@@ -1,6 +1,11 @@
 package com.jobportal.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDate;
 
 /**
@@ -8,6 +13,10 @@ import java.time.LocalDate;
  * Created by employers.
  */
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "jobs")
 public class Job {
 
@@ -37,26 +46,4 @@ public class Job {
 
     // Date when the job was posted
     private LocalDate postedDate;
-
-    // ── Constructors ──────────────────────────────────────────────────────────
-    public Job() {}
-
-    // ── Getters & Setters ─────────────────────────────────────────────────────
-    public Long getId()               { return id; }
-    public String getTitle()          { return title; }
-    public String getCompany()        { return company; }
-    public String getLocation()       { return location; }
-    public String getType()           { return type; }
-    public String getDescription()    { return description; }
-    public Long getEmployerId()       { return employerId; }
-    public LocalDate getPostedDate()  { return postedDate; }
-
-    public void setId(Long id)                    { this.id = id; }
-    public void setTitle(String title)            { this.title = title; }
-    public void setCompany(String company)        { this.company = company; }
-    public void setLocation(String location)      { this.location = location; }
-    public void setType(String type)              { this.type = type; }
-    public void setDescription(String d)          { this.description = d; }
-    public void setEmployerId(Long employerId)    { this.employerId = employerId; }
-    public void setPostedDate(LocalDate date)     { this.postedDate = date; }
 }

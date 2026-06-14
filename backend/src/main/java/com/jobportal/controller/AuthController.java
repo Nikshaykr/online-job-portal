@@ -3,6 +3,7 @@ package com.jobportal.controller;
 import com.jobportal.model.User;
 import com.jobportal.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,9 +21,9 @@ import java.util.Optional;
  */
 @RestController
 @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+@RequiredArgsConstructor
 public class AuthController {
 
-    @Autowired
     private UserRepository userRepository;
 
     // ── POST /register ────────────────────────────────────────────────────────

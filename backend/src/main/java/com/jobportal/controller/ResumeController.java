@@ -4,6 +4,7 @@ import com.jobportal.model.User;
 import com.jobportal.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -35,6 +36,7 @@ import java.util.Optional;
  */
 @RestController
 @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+@RequiredArgsConstructor
 public class ResumeController {
 
     // Inject the upload folder path from application.properties
@@ -42,7 +44,6 @@ public class ResumeController {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    @Autowired
     private UserRepository userRepository;
 
     // ── Helper: read X-User-Id header or fall back to session ─────────────────

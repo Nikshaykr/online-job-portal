@@ -6,6 +6,7 @@ import com.jobportal.repository.JobRepository;
 import com.jobportal.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +15,11 @@ import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+@RequiredArgsConstructor
 public class AdminController {
 
-    @Autowired private UserRepository userRepository;
-    @Autowired private JobRepository  jobRepository;
+    private UserRepository userRepository;
+    private JobRepository  jobRepository;
 
     // Helper: check if admin via header or session
     private boolean isAdmin(HttpServletRequest request, HttpSession session) {
