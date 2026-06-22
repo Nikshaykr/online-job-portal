@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Job entity — maps to the 'jobs' table.
@@ -40,10 +40,10 @@ public class Job {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // Foreign key: id of the employer (User) who posted this job
-    @Column(nullable = false)
-    private Long employerId;
-
     // Date when the job was posted
-    private LocalDate postedDate;
+    private LocalDateTime postedDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employer_id", nullable = false)
+    private User employer;
 }

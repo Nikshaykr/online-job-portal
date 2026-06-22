@@ -74,6 +74,7 @@
 
 <script src="app.js"></script>
 <script>
+    renderNav('nav-links');
   // Redirect if not a seeker
   const user = requireLogin('seeker');
   if (user) {
@@ -81,7 +82,7 @@
     document.getElementById('greeting').textContent = 'Welcome, ' + user.name + ' 👋';
 
     async function loadApplications() {
-      const res  = await apiFetch('/my-applications');
+      const res  = await apiFetch('/applications');
       const apps = await res.json();
 
       const stats = document.getElementById('stats-row');
@@ -169,8 +170,7 @@
         method:      'POST',
         credentials: 'include',          // send session cookie
         headers: {
-          'X-User-Id':   user.id,        // auth header (same pattern as apiFetch)
-          'X-User-Role': user.role,
+          'Authorization': 'Bearer ' + user.token,
           // NOTE: Do NOT set Content-Type here — the browser sets it automatically
           //       for FormData, including the required boundary parameter.
         },

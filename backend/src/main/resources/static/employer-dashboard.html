@@ -125,7 +125,8 @@
       async function loadMyJobs() {
         const res = await apiFetch('/jobs');
         const jobs = await res.json();
-        const mine = jobs.filter(j => j.employerId == user.id);
+        // Backend maps user ID as postedById in JobResponseDto
+        const mine = jobs.filter(j => j.postedById == user.id);
         const tbody = document.getElementById('jobs-table-body');
 
         if (!mine.length) {
@@ -133,29 +134,23 @@
           return;
         }
 
-        // Fetch applicant counts for all jobs at the same time (in parallel)
-        // Promise.all() waits for ALL the fetch promises to finish before continuing
-        const countPromises = mine.map(async (j) => {
-          const r    = await apiFetch('/job-applicants/' + j.id);  // fetch applicants list
-          const data = await r.json();
-          // data is an array of applicants; .length gives the count
-          return Array.isArray(data) ? data.length : 0;
-        });
+        // Fetch applications once and count in-memory to avoid N+1 fetches
+        const appsRes = await apiFetch('/applications');
+        const apps = await appsRes.json();
 
-        // Wait for all counts to resolve, then build the table
-        const counts = await Promise.all(countPromises);
-
-        tbody.innerHTML = mine.map((j, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td><strong>${j.title}</strong></td>
-          <td>${j.location}</td>
-          <td><span class="tag">${j.type}</span></td>
-          <td>${formatDate(j.postedDate)}</td>
-          <!-- Show the count in the button label: counts[i] matches mine[i] by index -->
-          <td><button class="btn btn-accent btn-sm" onclick="viewApplicants(${j.id}, '${j.title}')">View Applicants (${counts[i]})</button></td>
-        </tr>
-      `).join('');
+        tbody.innerHTML = mine.map((j, i) => {
+          const count = Array.isArray(apps) ? apps.filter(a => a.jobId === j.id).length : 0;
+          return `
+            <tr>
+              <td>${i + 1}</td>
+              <td><strong>${j.title}</strong></td>
+              <td>${j.location}</td>
+              <td><span class="tag">${j.type}</span></td>
+              <td>${formatDate(j.postedDate)}</td>
+              <td><button class="btn btn-accent btn-sm" onclick="viewApplicants(${j.id}, '${j.title}')">View Applicants (${count})</button></td>
+            </tr>
+          `;
+        }).join('');
       }
 
       window.viewApplicants = async function (jobId, jobTitle) {
@@ -163,8 +158,9 @@
         document.getElementById('panel-applicants').style.display = 'block';
         document.getElementById('applicants-body').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">Loading…</td></tr>';
 
-        const res = await apiFetch('/job-applicants/' + jobId);
-        const data = await res.json();
+        const res = await apiFetch('/applications');
+        const allApps = await res.json();
+        const data = Array.isArray(allApps) ? allApps.filter(a => a.jobId === jobId) : [];
 
         if (!data.length) {
           document.getElementById('applicants-body').innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="big">👤</div>No applicants yet.</div></td></tr>`;
@@ -197,7 +193,7 @@
       }
 
       window.updateStatus = async function (appId, status) {
-        const res = await apiFetch('/update-status', { method: 'POST', body: JSON.stringify({ applicationId: appId, status }) });
+        const res = await apiFetch('/applications/update-status', { method: 'POST', body: JSON.stringify({ applicationId: appId, status }) });
         if (res.ok) {
           const badge = document.getElementById('badge-' + appId);
           if (badge) { badge.textContent = status; badge.className = badgeClass(status); }
@@ -220,7 +216,7 @@
           description: document.getElementById('p-desc').value.trim(),
         };
 
-        const res = await apiFetch('/jobs/add', { method: 'POST', body: JSON.stringify(body) });
+        const res = await apiFetch('/jobs', { method: 'POST', body: JSON.stringify(body) });
         if (res.ok) {
           sucEl.textContent = '✅ Job posted successfully!';
           sucEl.style.display = 'block';
@@ -236,12 +232,7 @@
 
       loadMyJobs();
 
-      // ── Download Resume helper ────────────────────────────────────────────────
-      // The <a href="..." target="_blank"> would work BUT the backend checks
-      // X-User-Role header for auth — a plain link doesn't send custom headers.
-      //
-      // Solution: intercept the click, use fetch() with headers, then create a
-      // temporary blob URL and click it programmatically to trigger the download.
+
       window.addAuthHeaders = async function (event, seekerId) {
         event.preventDefault(); // stop the normal link navigation
 
@@ -250,8 +241,7 @@
           method:      'GET',
           credentials: 'include',
           headers: {
-            'X-User-Id':   user.id,
-            'X-User-Role': user.role,
+            'Authorization': 'Bearer ' + user.token,
           },
         });
 
@@ -260,19 +250,18 @@
           return;
         }
 
-        // Convert the response to a Blob (binary file data)
         const blob = await res.blob();
-        // Create a temporary invisible URL pointing to the blob in memory
         const url  = window.URL.createObjectURL(blob);
-        // Create a hidden <a> element and programmatically click it to download
         const a    = document.createElement('a');
         a.href     = url;
         a.download = 'resume_' + seekerId; // suggested file name for download
         a.click();
-        // Free the blob URL from memory after a short delay
         window.URL.revokeObjectURL(url);
       };
     }
+      <script src="app.js"></script>
+  <script>
+      renderNav('nav-links');
   </script>
 </body>
 

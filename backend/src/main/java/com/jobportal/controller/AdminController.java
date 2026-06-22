@@ -1,5 +1,7 @@
 package com.jobportal.controller;
 
+import com.jobportal.dto.JobResponseDto;
+import com.jobportal.dto.UserResponseDto;
 import com.jobportal.model.Job;
 import com.jobportal.model.User;
 import com.jobportal.repository.JobRepository;
@@ -7,59 +9,60 @@ import com.jobportal.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
+@RequestMapping("/admin")
 @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
-    private UserRepository userRepository;
-    private JobRepository  jobRepository;
-
-    // Helper: check if admin via header or session
-    private boolean isAdmin(HttpServletRequest request, HttpSession session) {
-        String headerRole = request.getHeader("X-User-Role");
-        if (headerRole != null) return "admin".equals(headerRole);
-        return "admin".equals(session.getAttribute("userRole"));
-    }
+    private final UserRepository userRepository;
+    private final JobRepository  jobRepository;
+    private final ModelMapper modelMapper;
 
     // ── GET /admin/users ──────────────────────────────────────────────────────
-    @GetMapping("/admin/users")
-    public ResponseEntity<?> listUsers(HttpSession session, HttpServletRequest request) {
-        if (!isAdmin(request, session)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Admin access required"));
-        }
-        List<User> users = userRepository.findAll();
+    @GetMapping("/users")
+    public ResponseEntity<List<UserResponseDto>> listUsers() {
+        List<UserResponseDto> users = userRepository.findAll().stream()
+                .map(user -> modelMapper.map(user, UserResponseDto.class))
+                .collect(Collectors.toList());
+
         return ResponseEntity.ok(users);
     }
 
     // ── GET /admin/jobs ───────────────────────────────────────────────────────
-    @GetMapping("/admin/jobs")
-    public ResponseEntity<?> listJobs(HttpSession session, HttpServletRequest request) {
-        if (!isAdmin(request, session)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Admin access required"));
-        }
-        List<Job> jobs = jobRepository.findAll();
+    @GetMapping("/jobs")
+    public ResponseEntity<List<JobResponseDto>> listJobs() {
+        List<JobResponseDto> jobs = jobRepository.findAll().stream()
+                .map(job -> {
+                    JobResponseDto dto = modelMapper.map(job, JobResponseDto.class);
+                    if (job.getEmployer() != null) {
+                        dto.setPostedById(job.getEmployer().getId());
+                        dto.setPostedByName(job.getEmployer().getName());
+                    }
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
         return ResponseEntity.ok(jobs);
     }
 
     // ── DELETE /admin/jobs/{id} ───────────────────────────────────────────────
-    @DeleteMapping("/admin/jobs/{id}")
-    public ResponseEntity<?> deleteJob(@PathVariable Long id,
-                                       HttpSession session,
-                                       HttpServletRequest request) {
-        if (!isAdmin(request, session)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Admin access required"));
-        }
-        if (!jobRepository.existsById(id)) {
+    @DeleteMapping("/jobs/{id}")
+    public ResponseEntity<?> deleteJob(@PathVariable Long id) {
+        if (!jobRepository.existsById(id))
             return ResponseEntity.notFound().build();
-        }
+
         jobRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Job " + id + " deleted"));
+        return ResponseEntity.ok(Map.of("message", "Job " + id + "deleted successfully by Admin"));
     }
 }

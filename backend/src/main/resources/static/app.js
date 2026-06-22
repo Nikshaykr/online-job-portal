@@ -9,13 +9,19 @@
  *   renderNav()        — Populate nav links based on login state
  */
 
-const API = '';
+const API = 'http://localhost:8080';
 
 // ── getUser ─────────────────────────────────────────────────────────────────
 // Returns the user object stored in localStorage, or null if not logged in.
+// Note: Backend LoginResponseDto returns { token, id, name, role }
 function getUser() {
     const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
+    if (raw) {
+        const user = JSON.parse(raw);
+        if (user.role) user.role = user.role.toLowerCase();
+        return user;
+    }
+    return null;
 }
 
 // ── requireLogin ─────────────────────────────────────────────────────────────
@@ -27,7 +33,9 @@ function requireLogin(role) {
         window.location.href = '/login.html';
         return null;
     }
-    if (role && user.role !== role) {
+    // backend returns lowercase role standard, but keep it robust
+    const currentRole = user.role ? user.role.toLowerCase() : '';
+    if (role && currentRole !== role.toLowerCase()) {
         alert('Access denied. This page is for ' + role + 's only.');
         window.location.href = '/index.html';
         return null;
@@ -38,9 +46,9 @@ function requireLogin(role) {
 // ── apiFetch ─────────────────────────────────────────────────────────────────
 // Wrapper around fetch() that:
 //   - prepends the API base URL
-//   - always includes credentials (session cookies)
+//   - always includes credentials (session cookies / Authorization header)
 //   - sets Content-Type to JSON for POST/PUT bodies
-//   - injects X-User-Id and X-User-Role headers if logged in
+//   - injects JWT token in Authorization header if logged in
 async function apiFetch(path, options = {}) {
     const user = getUser();
     const headers = {
@@ -48,9 +56,8 @@ async function apiFetch(path, options = {}) {
         ...(options.headers || {})
     };
 
-    if (user) {
-        headers['X-User-Id'] = user.id;
-        headers['X-User-Role'] = user.role;
+    if (user && user.token) {
+        headers['Authorization'] = 'Bearer ' + user.token;
     }
 
     const defaults = {
@@ -87,9 +94,9 @@ function renderNav(containerId = 'nav-links') {
     }
 
     let dashLink = '';
-    if (user.role === 'seeker')   dashLink = `<a href="/seeker-dashboard.html">Dashboard</a>`;
-    if (user.role === 'employer') dashLink = `<a href="/employer-dashboard.html">Dashboard</a>`;
-    if (user.role === 'admin')    dashLink = `<a href="/admin-dashboard.html">Admin</a>`;
+    if (user.role === 'SEEKER')   dashLink = `<a href="/seeker-dashboard.html">Dashboard</a>`;
+    if (user.role === 'EMPLOYER') dashLink = `<a href="/employer-dashboard.html">Dashboard</a>`;
+    if (user.role === 'ADMIN')    dashLink = `<a href="/admin-dashboard.html">Admin</a>`;
 
     el.innerHTML = `
         <a href="/index.html">Home</a>

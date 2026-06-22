@@ -1,42 +1,26 @@
 package com.jobportal.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
+import lombok.Data;
 import java.time.LocalDate;
 
-/**
- * Application entity — maps to the 'applications' table.
- * Represents a jobseeker applying to a job.
- */
 @Entity
-// can use lombok @Getter, @Setter, @NoArgsConstructor & @AllArgsConstructor annotations here for removing repetitive code
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "applications")
+@Data
 public class Application {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Foreign key: id of the seeker (User) who applied
-    @Column(nullable = false)
-    private Long seekerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_id", nullable = false)
+    private Job job; // Replaced Long jobId
 
-    // Foreign key: id of the job applied to
-    @Column(nullable = false)
-    private Long jobId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seeker_id", nullable = false)
+    private User seeker; // Replaced Long seekerId
 
-    // Status: Applied, Shortlisted, Rejected
-    @Column(nullable = false)
-    private String status;
-
-    // Date when the application was submitted
+    private String status; // PENDING, SHORTLISTED, REJECTED, ACCEPTED
     private LocalDate appliedDate;
 }

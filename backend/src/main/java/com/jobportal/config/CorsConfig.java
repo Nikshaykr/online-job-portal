@@ -1,4 +1,4 @@
-package com.jobportal.config;
+/*package com.jobportal.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,16 +8,16 @@ import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
-/**
+*//**
  * CorsConfig — allows the frontend (served via VS Code Live Server) to
  * call the backend without browser CORS blocks.
  *
  * allowCredentials = true is needed so that session cookies are sent.
- */
-@Configuration
+ *//*
+//@Configuration
 public class CorsConfig {
 
-    @Bean
+    //@Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
 
@@ -41,4 +41,4 @@ public class CorsConfig {
 
         return new CorsFilter(source);
     }
-}
+}*/

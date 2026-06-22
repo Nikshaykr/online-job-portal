@@ -1,6 +1,7 @@
 package com.jobportal.model;
 
 import org.junit.jupiter.api.*;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -10,7 +11,7 @@ class UserTest {
 
     @BeforeEach
     void setUp() {
-        testUser = new User("Nikshay", "nik@test.com", "secure123", "seeker");
+        testUser = new User("Nikshay", "nik@test.com", "secure123", Role.SEEKER);
     }
 
     @Test
@@ -20,7 +21,7 @@ class UserTest {
                 () -> assertEquals("Nikshay", testUser.getName()),
                 () -> assertEquals("nik@test.com", testUser.getEmail()),
                 () -> assertEquals("secure123", testUser.getPassword()),
-                () -> assertEquals("seeker", testUser.getRole()),
+                () -> assertEquals(Role.SEEKER, testUser.getRole()),
                 () -> assertNull(testUser.getResumePath())
         );
     }
@@ -39,5 +40,11 @@ class UserTest {
 
         assertNotNull(testUser.getResumePath());
         assertEquals("uploads/resume_1.pdf", testUser.getResumePath());
+    }
+
+    @Test
+    @DisplayName("Should return correct authority mapped from Role Enum for UserDetails")
+    void testGetAuthorities() {
+        assertTrue(testUser.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_SEEKER")));
     }
 }
