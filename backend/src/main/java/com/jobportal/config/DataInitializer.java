@@ -20,7 +20,6 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
 
-        // Inside DataInitializer.java
         Optional<User> existingAdmin = userRepository.findByEmail("admin@jobportal.com");
 
         if (existingAdmin.isEmpty()) {
@@ -39,18 +38,6 @@ public class DataInitializer implements CommandLineRunner {
                 userRepository.save(admin);
                 System.out.println("🔄 Admin password updated to valid BCrypt format!");
             }
-        }
-
-        // 1. Seed DEFAULT SYSTEM ADMIN account
-        if (!userRepository.existsByEmail("admin@portal.com")) {
-            User admin = new User();
-            admin.setName("System Admin");
-            admin.setEmail("admin@portal.com");
-            // Encodes the password securely using your configured BCrypt bean
-            admin.setPassword(passwordEncoder.encode("admin123"));
-            admin.setRole(Role.ADMIN);
-            userRepository.save(admin);
-            System.out.println("✔ Default Admin account initialized (admin@portal.com / admin123)");
         }
 
         // 2. Seed DEFAULT DEMO EMPLOYER account (Optional, but great for quick testing)
