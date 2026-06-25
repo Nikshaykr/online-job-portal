@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+@RequestMapping("/applications")
+// @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class ApplicationController {
 
@@ -25,7 +26,7 @@ public class ApplicationController {
     private final ApplicationService applicationService;
 
     // ── POST /applications (Seekers apply for a job) ──────────────────────────
-    @PostMapping("/applications")
+    @PostMapping("")
     @PreAuthorize("hasRole('SEEKER')")
     public ResponseEntity<?> applyToJob(@RequestBody ApplyJobRequestDto requestDto, HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
@@ -42,7 +43,7 @@ public class ApplicationController {
     }
 
     // ── GET /applications (Fetch list depending on logged-in Role) ─────────────
-    @GetMapping("/applications")
+    @GetMapping("")
     @PreAuthorize("hasAnyRole('SEEKER', 'EMPLOYER')")
     public ResponseEntity<List<ApplicationResponseDto>> getApplications(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
@@ -55,15 +56,16 @@ public class ApplicationController {
     }
 
     // ── POST /applications/update-status (Employer accepts/rejects) ────────────
-    @PostMapping("/applications/update-status")
+    @PostMapping("/update-status")
     @PreAuthorize("hasRole('EMPLOYER')")
     public ResponseEntity<?> updateStatus(@RequestBody UpdateStatusRequestDto requestDto, HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         if (userId == null) return ResponseEntity.status(401).build();
 
         try {
-            applicationService.updateApplicationStatus(requestDto, userId);
-            return ResponseEntity.ok(Map.of("message", "Application status updated successfully"));
+            // FIX: Capture the returned DTO and send it back to the frontend
+            ApplicationResponseDto updatedApp = applicationService.updateApplicationStatus(requestDto, userId);
+            return ResponseEntity.ok(updatedApp);
         } catch (RuntimeException e) {
             return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }

@@ -34,16 +34,21 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                                .requestMatchers("/auth/**").permitAll()
-                        // ... rest
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/", "/index.html", "/login.html", "/register.html", "/jobs.html", "/seeker-dashboard.html", "/employer-dashboard.html", "/admin-dashboard.html").permitAll()
-                        .requestMatchers("/style.css", "/app.js").permitAll()
-                        .requestMatchers("/jobs", "/jobs/**").permitAll()
+                        // 1. Always allow pre-flight OPTIONS requests first
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 2. Public Auth endpoints (Login / Signup)
+                        .requestMatchers("/auth/**").permitAll()
+
+                        // 3. Static assets and Frontend web pages
+                        .requestMatchers("/", "/index.html", "/login.html", "/register.html", "/jobs.html",
+                                "/seeker-dashboard.html", "/employer-dashboard.html", "/admin-dashboard.html").permitAll()
+                        .requestMatchers("/style.css", "/app.js").permitAll()
+
+                        // 4. Job views (Only allow public GET requests for browsing)
+                        .requestMatchers(HttpMethod.GET, "/jobs", "/jobs/**").permitAll()
+
+                        // 5. Secure all other mutation and custom dashboard API endpoints
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -56,7 +61,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5500",
-                "http://127.0.0.1:5500"
+                "http://127.0.0.1:5500",
+                "http://localhost:8080"
+
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));

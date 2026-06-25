@@ -54,21 +54,22 @@
       return;
     }
 
-    grid.innerHTML = jobs.map(j => `
-      <div class="card" onclick="window.location='/jobs.html#${j.id}'">
-        <div class="card-title">${j.title}</div>
-        <div class="card-company">${j.company}</div>
-        <div class="card-meta">
-          <span class="tag">📍 ${j.location}</span>
-          <span class="tag">💼 ${j.type}</span>
-        </div>
-        <div class="card-desc">${j.description || 'No description provided.'}</div>
-        <div class="card-footer">
-          <span class="card-date">${formatDate(j.postedDate)}</span>
-          <a href="jobs.html" class="btn btn-primary btn-sm">View →</a>
-        </div>
-      </div>
-    `).join('');
+    // Inside index.html - loadJobs function
+grid.innerHTML = jobs.map(j => `
+  <div class="card" onclick="window.location='/jobs.html#${j.id}'">
+    <div class="card-title">${j.title}</div>
+    <div class="card-company">${j.company}</div>
+    <div class="card-meta">
+      <span class="tag">📍 ${j.location}</span>
+      <span class="tag">💼 ${j.type}</span>
+    </div>
+    <div class="card-desc">${j.description || 'No description provided.'}</div>
+    <div class="card-footer">
+      <span class="card-date">${formatDate(j.postedDate)}</span>
+      <a href="jobs.html#${j.id}" class="btn btn-primary btn-sm">View →</a>
+    </div>
+  </div>
+`).join('');
   }
 
   function searchJobs() {

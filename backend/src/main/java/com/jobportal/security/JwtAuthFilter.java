@@ -79,6 +79,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
         // Bypass token checks completely for signup, login, and static auth endpoints
-        return path.startsWith("/auth/");
+        return path.equals("/auth/login") || path.equals("/auth/signup");
     }
 }

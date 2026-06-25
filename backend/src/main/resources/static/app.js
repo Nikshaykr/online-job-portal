@@ -94,9 +94,9 @@ function renderNav(containerId = 'nav-links') {
     }
 
     let dashLink = '';
-    if (user.role === 'SEEKER')   dashLink = `<a href="/seeker-dashboard.html">Dashboard</a>`;
-    if (user.role === 'EMPLOYER') dashLink = `<a href="/employer-dashboard.html">Dashboard</a>`;
-    if (user.role === 'ADMIN')    dashLink = `<a href="/admin-dashboard.html">Admin</a>`;
+    if (user.role === 'seeker')   dashLink = `<a href="/seeker-dashboard.html">Dashboard</a>`;
+    if (user.role === 'employer') dashLink = `<a href="/employer-dashboard.html">Dashboard</a>`;
+    if (user.role === 'admin')    dashLink = `<a href="/admin-dashboard.html">Admin</a>`;
 
     el.innerHTML = `
         <a href="/index.html">Home</a>

@@ -2,15 +2,10 @@ package com.jobportal.controller;
 
 import com.jobportal.dto.JobResponseDto;
 import com.jobportal.dto.UserResponseDto;
-import com.jobportal.model.Job;
-import com.jobportal.model.User;
 import com.jobportal.repository.JobRepository;
 import com.jobportal.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +15,8 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+// @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+// This was conflicting with the global CORS configuration
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
@@ -63,6 +59,8 @@ public class AdminController {
             return ResponseEntity.notFound().build();
 
         jobRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Job " + id + "deleted successfully by Admin"));
+
+        // FIX: Added a space before "deleted" so it reads cleanly as "Job 12 deleted..."
+        return ResponseEntity.ok(Map.of("message", "Job " + id + " deleted successfully by Admin"));
     }
 }

@@ -12,6 +12,7 @@ import com.jobportal.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -42,7 +43,7 @@ public class ApplicationService {
         Application application = new Application();
         application.setJob(job);
         application.setSeeker(seeker);
-        application.setStatus("PENDING");
+        application.setStatus("Applied");
         application.setAppliedDate(LocalDate.now());
 
         Application savedApp = applicationRepository.save(application);
@@ -65,17 +66,37 @@ public class ApplicationService {
                 .collect(Collectors.toList());
     }
 
-    public void updateApplicationStatus(UpdateStatusRequestDto requestDto, Long employerId) {
-        Application app = applicationRepository.findById(requestDto.getApplicationId())
+    // Inside ApplicationService.java - updateApplicationStatus Flow
+    public ApplicationResponseDto updateApplicationStatus(UpdateStatusRequestDto requestDto, Long employerId) {
+        // 1. Find the application using the ID inside the DTO
+        Application application = applicationRepository.findById(requestDto.getApplicationId())
                 .orElseThrow(() -> new RuntimeException("Application not found"));
 
-        // Direct object graph navigation: app -> job -> employer -> id
-        if (!app.getJob().getEmployer().getId().equals(employerId)) {
+        // 2. Security Guardrail: Check if this employer actually owns the job posting
+        if (!application.getJob().getEmployer().getId().equals(employerId)) {
             throw new RuntimeException("You are not authorized to alter applications for this job posting");
         }
 
-        app.setStatus(requestDto.getStatus().toUpperCase());
-        applicationRepository.save(app);
+        // 3. Normalize the status string to Title-Case for frontend compatibility
+        String rawStatus = requestDto.getStatus();
+        String formattedStatus;
+
+        if (rawStatus.equalsIgnoreCase("SHORTLISTED") || rawStatus.equalsIgnoreCase("Shortlisted")) {
+            formattedStatus = "Shortlisted";
+        } else if (rawStatus.equalsIgnoreCase("REJECTED") || rawStatus.equalsIgnoreCase("Rejected")) {
+            formattedStatus = "Rejected";
+        } else if (rawStatus.equalsIgnoreCase("PENDING") || rawStatus.equalsIgnoreCase("Applied")) {
+            formattedStatus = "Applied";
+        } else {
+            // Fallback title-case formatter
+            formattedStatus = rawStatus.substring(0, 1).toUpperCase() + rawStatus.substring(1).toLowerCase();
+        }
+
+        // 4. Save and return the clean data transfer object
+        application.setStatus(formattedStatus);
+        Application updatedApplication = applicationRepository.save(application);
+
+        return mapToResponseDto(updatedApplication);
     }
 
     private ApplicationResponseDto mapToResponseDto(Application app) {
@@ -83,9 +104,12 @@ public class ApplicationService {
 
         // No manual repository cross-queries needed anymore!
         // Data streams cleanly straight through the active entity graph.
+        dto.setApplicationId(app.getId());
+
         dto.setJobId(app.getJob().getId());
         dto.setJobTitle(app.getJob().getTitle());
         dto.setCompany(app.getJob().getCompany());
+        dto.setLocation(app.getJob().getLocation());
 
         dto.setSeekerId(app.getSeeker().getId());
         dto.setSeekerName(app.getSeeker().getName());

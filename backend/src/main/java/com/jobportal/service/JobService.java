@@ -40,8 +40,14 @@ public class JobService {
         return response;
     }
 
-    public List<JobResponseDto> getAllJobs() {
-        return jobRepository.findAll().stream()
+    public List<JobResponseDto> getAllJobs(String title, String location, String type) {
+        // If a parameter comes in empty or blank from the frontend, normalize it to null
+        String searchTitle = (title != null && !title.isBlank()) ? title : null;
+        String searchLocation = (location != null && !location.isBlank()) ? location : null;
+        String searchType = (type != null && !type.isBlank()) ? type : null;
+
+        // Route directly into your specialized repository query mapping
+        return jobRepository.searchJobs(searchTitle, searchLocation, searchType).stream()
                 .map(job -> {
                     JobResponseDto dto = modelMapper.map(job, JobResponseDto.class);
 

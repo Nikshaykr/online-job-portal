@@ -3,9 +3,7 @@ package com.jobportal.controller;
 import com.jobportal.dto.CreateJobRequestDto;
 import com.jobportal.dto.JobResponseDto;
 import com.jobportal.model.User;
-import com.jobportal.repository.JobRepository;
 import com.jobportal.service.JobService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
@@ -16,18 +14,22 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/jobs")
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+// @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class JobController {
 
     private final JobService jobService;
-    private final JobRepository jobRepository;
     private final ModelMapper modelMapper;
 
     // Alternate getAllJobs
     @GetMapping
-    public ResponseEntity<List<JobResponseDto>> getAllJobs() {
-        List<JobResponseDto> jobs = jobService.getAllJobs();
+    public ResponseEntity<List<JobResponseDto>> getAllJobs(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String type) {
+
+        // Route parameter states downstream into your updated application service layer
+        List<JobResponseDto> jobs = jobService.getAllJobs(title, location, type);
         return ResponseEntity.ok(jobs);
     }
 
@@ -49,6 +51,7 @@ public class JobController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('EMPLOYER', 'ADMIN')")
     public ResponseEntity<?> deleteJob(@PathVariable Long id, @AuthenticationPrincipal User user) {
 
         try {

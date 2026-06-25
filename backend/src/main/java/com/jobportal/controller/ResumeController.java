@@ -2,7 +2,6 @@ package com.jobportal.controller;
 
 import com.jobportal.model.User;
 import com.jobportal.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -15,7 +14,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 
@@ -26,7 +24,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
+// @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class ResumeController {
 
@@ -76,7 +74,16 @@ public class ResumeController {
         if (user.getResumePath() == null) {
             return ResponseEntity.ok(Map.of("hasResume", false));
         }
-        return ResponseEntity.ok(Map.of("hasResume", true, "resumePath", user.getResumePath()));
+
+        // FIX: Extract just the filename from the absolute path string
+        Path path = Paths.get(user.getResumePath());
+        String fileName = path.getFileName().toString();
+
+        // FIX: Change key from "resumePath" to "fileName" to match seeker-dashboard.html
+        return ResponseEntity.ok(Map.of(
+                "hasResume", true,
+                "fileName", fileName
+        ));
     }
 
     // ── GET /resume/{seekerId} ────────────────────────────────────────────────
