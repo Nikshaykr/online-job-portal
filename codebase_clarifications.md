@@ -1,64 +1,136 @@
 # Codebase Clarifications — Job Portal Project
 
-This document details implementation details, trade-offs, college-project shortcuts, and architectural constraints in the Job Portal project. Use this to help an AI developer make safe and correct updates to the codebase.
+This document details implementation specifics, architectural decisions, and behavioral nuances in the Job Portal codebase. Use this to help an AI developer make safe and correct updates.
 
 ---
 
-## 1. Authentication & Security (Critical Caveat)
+## 1. Authentication & Security
 
-The project implements a **hybrid authentication approach**:
-1. **HTTP Sessions:** The backend registers session variables (`userId`, `userName`, `userRole`) inside `AuthController.java` on the standard HttpSession object.
-2. **Custom HTTP Headers:** The client-side `apiFetch()` utility in [app.js](file:///backend/src/main/resources/static/app.js) reads user profiles cached in browser `localStorage` and appends them to outgoing API calls via `X-User-Id` and `X-User-Role` headers.
-3. **Controller Interceptors:** Endpoints retrieve user info using a fallback strategy, checking the custom headers first, and checking session attributes if the headers are absent.
+The project uses a **stateless JWT authentication architecture**:
 
-```java
-// Common pattern used across controllers
-private Long resolveUserId(HttpServletRequest request, HttpSession session) {
-    String h = request.getHeader("X-User-Id");
-    if (h != null) {
-        try { return Long.valueOf(h); } catch (Exception ignored) {}
-    }
-    return (Long) session.getAttribute("userId");
-}
-```
+1. **Token Generation:** On successful login (`POST /auth/login`), `JwtTokenProvider` generates a signed JWT containing the user's `id`, `email`, and `role` as claims. The token is returned to the client as a plain string.
+2. **Token Transmission:** The frontend stores the JWT in `localStorage` and attaches it to every API call via the standard `Authorization: Bearer <token>` header using the `apiFetch()` utility in `app.js`.
+3. **Request Filtering:** `JwtAuthFilter` extends `OncePerRequestFilter` and runs on every request (except publicly exempted paths). It extracts the token from the `Authorization` header, validates the signature and expiration via `JwtTokenProvider`, and constructs a `UsernamePasswordAuthenticationToken` with the user's authorities.
+4. **Authority Binding:** The `Role` enum values (`SEEKER`, `EMPLOYER`, `ADMIN`) are prefixed with `ROLE_` when set as granted authorities — e.g., `ROLE_SEEKER`. This follows Spring Security's default role-voting convention.
+5. **Context Propagation:** The authentication object is set on the `SecurityContextHolder`, making it accessible in controllers via `@AuthenticationPrincipal` or `SecurityContextHolder.getContext().getAuthentication()`.
 
-### Why was this done?
-This dual approach was built to bypass CORS/Session sharing restrictions when running the frontend via a **VS Code Live Server** (hosted on port `5500` or `127.0.0.1:5500`) while the backend runs on port `8080`. Since cookies/sessions can sometimes fail cross-origin in local development, custom headers act as a reliable fallback.
+### SecurityConfig Filter Chain
 
-> [!WARNING]
-> **Production Security Risk:** Client-side header authentication is highly insecure. Users can easily spoof these headers in curl or developer tools to access any user account or admin dashboard. If refactoring for production, remove the header fallbacks entirely and enforce session cookies or implement JWT (JSON Web Tokens).
+`SecurityConfig` defines which endpoints are public vs. protected:
+- **Public:** `POST /auth/signup`, `POST /auth/login`, `GET /jobs`, `GET /jobs/{id}`
+- **Seeker:** `POST /applications`, `GET /applications` (when role is SEEKER), resume upload endpoints
+- **Employer:** `POST /jobs`, `DELETE /jobs/{id}` (own only), `GET /applications` (when role is EMPLOYER), `POST /applications/update-status`, resume download
+- **Admin:** `GET /admin/users`, `DELETE /admin/jobs/{id}`
+- All other requests require authentication by default.
+
+> **Note:** CSRF is disabled because this is a stateless JWT API — there are no session cookies to protect.
 
 ---
 
 ## 2. Password Storage
-* **Implementation:** Passwords are saved as raw, unhashed strings in the database (e.g., `User.password = "123"`).
-* **Rationale:** Done for simplicity as a BCA curriculum project.
-* **Refactoring note:** If security needs to be upgraded, add the `spring-boot-starter-security` dependency and use `BCryptPasswordEncoder` to hash/verify passwords.
+
+- **Implementation:** Passwords are hashed using `BCryptPasswordEncoder` configured as a Spring bean in `AppConfig` (or `SecurityConfig`).
+- **Registration Flow:** `AuthService` encodes the raw password via `passwordEncoder.encode()` before persisting the `User` entity.
+- **Login Flow:** `AuthService` verifies using `passwordEncoder.matches(rawInput, storedHash)`.
+- No plaintext passwords exist anywhere in the system.
 
 ---
 
-## 3. Resume Upload Handling
-* **Location:** Resumes are saved in the `uploads/` folder located in the root of the project.
-* **Disk Path Logic:** `Paths.get(uploadDir).toAbsolutePath().normalize()` is used to resolve the path on the server to prevent tomcat from writing files to a transient temp folder. The absolute system path is stored directly in `users.resume_path`.
-* **File Replacement:** When a user uploads a new resume, `StandardCopyOption.REPLACE_EXISTING` overwrites the old file on disk. The path is set to `resume_{userId}.pdf` or `resume_{userId}.docx`, ensuring each seeker only ever has a single resume file.
+## 3. Role Model
+
+- The `Role` Java enum defines three values: `SEEKER`, `EMPLOYER`, `ADMIN`.
+- The `User` entity holds a `@Enumerated(EnumType.STRING)` field, storing the role as a clean string (`"SEEKER"`, not an ordinal) in the database.
+- In `JwtAuthFilter`, the role is converted to a `SimpleGrantedAuthority` with the `ROLE_` prefix to integrate with Spring Security's `hasRole()` expressions in the filter chain.
 
 ---
 
-## 4. Resume Download Workaround
-Because the backend checks custom HTTP headers (`X-User-Role`) for permission to download resumes, a standard HTML hyperlink (`<a href="/resume/123">Download</a>`) will fail because standard anchor clicks do not support custom request headers.
+## 4. Admin Seeding
 
-### Frontend Workaround:
-Inside [employer-dashboard.html](file:///backend/src/main/resources/static/employer-dashboard.html), download triggers a custom JavaScript method `addAuthHeaders(event, seekerId)`:
-1. It intercepts the anchor click (`event.preventDefault()`).
-2. It executes a `fetch()` request manually appending the custom `X-User-Id` and `X-User-Role` headers.
-3. It converts the response stream to a binary `Blob` object.
-4. It creates a temporary URL in memory (`window.URL.createObjectURL(blob)`).
-5. It instantiates a hidden `<a>` node programmatically, clicks it to launch the browser download, and then releases the memory URL.
+- `DataInitializer` implements `CommandLineRunner` and executes on application startup.
+- It checks whether an admin user already exists (by email or role) before creating one, making it idempotent — safe to run on every boot without duplicating records.
+- The admin password is BCrypt-hashed at creation time, not stored as plaintext.
+- This completely replaces the old manual SQL `INSERT INTO users` approach.
 
 ---
 
-## 5. Live Search & Debouncing
-To prevent spamming the backend database with requests on every keystroke in the browse page ([jobs.html](file:///backend/src/main/resources/static/jobs.html)), the input search listeners are wrapped in a debounce utility:
+## 5. Resume Upload Handling
+
+- **Location:** Resumes are saved in the `uploads/` folder located in the project root.
+- **Disk Path Logic:** `Paths.get(uploadDir).toAbsolutePath().normalize()` resolves the path to prevent Tomcat from writing to a transient temp folder. The absolute system path is stored in `User.resumePath`.
+- **File Replacement:** When a user re-uploads, `StandardCopyOption.REPLACE_EXISTING` overwrites the old file. Files are named `resume_{userId}.pdf` or `resume_{userId}.docx`, ensuring each seeker has exactly one resume.
+- **Validation:** Only `PDF` and `DOCX` MIME types are accepted, with a 5 MB size cap enforced at the controller level.
+
+---
+
+## 6. Resume Download
+
+Since resume downloads require JWT authentication (via the `Authorization` header), a standard HTML `<a href="/resume/123">` link won't work because anchor clicks cannot attach custom headers.
+
+### Frontend Implementation
+
+Inside `employer-dashboard.html`, the download triggers a JavaScript method:
+1. Intercepts the anchor click (`event.preventDefault()`).
+2. Executes a `fetch()` call with the `Authorization: Bearer <token>` header.
+3. Converts the response to a binary `Blob`.
+4. Creates a temporary in-memory URL (`window.URL.createObjectURL(blob)`).
+5. Programmatically creates and clicks a hidden `<a>` element to trigger the browser download, then revokes the object URL.
+
+---
+
+## 7. Service-Layer Ownership Guardrails
+
+Employer-facing endpoints perform explicit ownership validation in the service layer:
+- **Viewing applicants:** `ApplicationService` verifies that the `job.employerId` matches the authenticated employer's ID before returning applicant data. Returns a 403 if mismatched.
+- **Updating status:** `ApplicationService` performs the same ownership check before allowing status changes.
+- **Deleting jobs:** `JobService` ensures only the owning employer (or an admin) can delete a job listing.
+
+This means even if a malicious employer guesses another employer's job ID, the service layer rejects the operation regardless of what the security filter chain allowed.
+
+---
+
+## 8. Duplicate Application Prevention
+
+- `ApplicationService` checks for an existing `Application` record with the matching `seekerId` and `jobId` pair before creating a new one.
+- If a duplicate is found, a conflict response (typically 409) is returned.
+- This is enforced at the service level, not just via database unique constraints, allowing a clean error message to be returned to the client.
+
+---
+
+## 9. Cascade Deletion via JPA
+
+- The `Job` entity defines a cascade relationship (e.g., `CascadeType.ALL` or `@OneToMany(cascade = CascadeType.REMOVE)`) on its `applications` collection.
+- When a job is deleted (by its owner or an admin), Hibernate automatically issues `DELETE` statements for all associated `Application` records before deleting the `Job` itself.
+- This prevents `foreign key constraint violation` errors that would occur if applications were deleted independently or out of order.
+
+---
+
+## 10. DTO Pattern & ModelMapper
+
+- All controller methods accept request DTOs and return response DTOs — entities are never exposed directly to the API layer.
+- `ModelMapper` (configured as a bean in `AppConfig`) handles entity-to-DTO and DTO-to-entity conversion.
+- This decouples the API contract from the database schema, allowing fields to be renamed or restructured in the entity without breaking client integrations.
+
+---
+
+## 11. Global Exception Handling
+
+- `GlobalExceptionHandler` is a `@ControllerAdvice` class that catches all unhandled exceptions across all controllers.
+- It formats errors into a consistent JSON structure (e.g., `{"error": "message", "status": 404}`).
+- Handles common cases: `EntityNotFoundException`, `MethodArgumentNotValidException` (DTO validation failures), custom business exceptions, and a catch-all `Exception` handler for unexpected errors.
+
+---
+
+## 12. Input Validation
+
+- `ValidationUtils` provides reusable validation helper methods used across services.
+- DTOs use `jakarta.validation` annotations (`@NotBlank`, `@Email`, `@Size`, etc.) for declarative constraint definition.
+- Validation is triggered automatically by Spring when `@Valid` is used on controller method parameters.
+
+---
+
+## 13. Live Search & Debouncing
+
+To prevent spamming the backend on every keystroke in the browse page (`jobs.html`), search input listeners are wrapped in a debounce utility:
 
 ```javascript
 function debounce(fn, delay) {
@@ -70,11 +142,13 @@ function debounce(fn, delay) {
 }
 const debouncedSearch = debounce(loadJobs, 500);
 ```
-* **Behavior:** The API call is delayed by 500ms and resets on every keystroke. It only fires once the user stops typing for 500ms.
+
+- **Behavior:** The API call is delayed by 500ms and resets on every keystroke. It only fires once the user stops typing for 500ms.
 
 ---
 
-## 6. Local Server & CORS Configuration
-* **Config location:** [CorsConfig.java](file:///backend/src/main/java/com/jobportal/config/CorsConfig.java)
-* **Origins allowed:** `http://localhost:5500` and `http://127.0.0.1:5500` (defaults for VS Code Live Server).
-* **Credentials:** Enabled (`allowCredentials(true)`) to support sessions across origins.
+## 14. CORS Configuration
+
+- **Config location:** CorsConfig.java
+- **Purpose:** Allows the bundled static frontend (served from `http://localhost:8080`) to communicate with the API. Also supports external frontend origins during development if needed.
+- **Key settings:** The `Authorization` header is explicitly allowed in `allowedHeaders` so that JWT-bearing requests pass the preflight `OPTIONS` check.
