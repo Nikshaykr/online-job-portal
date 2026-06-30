@@ -8,20 +8,28 @@ This document details implementation specifics, architectural decisions, and beh
 
 The project uses a **stateless JWT authentication architecture**:
 
-1. **Token Generation:** On successful login (`POST /auth/login`), `JwtTokenProvider` generates a signed JWT containing the user's `id`, `email`, and `role` as claims. The token is returned to the client as a plain string.
-2. **Token Transmission:** The frontend stores the JWT in `localStorage` and attaches it to every API call via the standard `Authorization: Bearer <token>` header using the `apiFetch()` utility in `app.js`.
-3. **Request Filtering:** `JwtAuthFilter` extends `OncePerRequestFilter` and runs on every request (except publicly exempted paths). It extracts the token from the `Authorization` header, validates the signature and expiration via `JwtTokenProvider`, and constructs a `UsernamePasswordAuthenticationToken` with the user's authorities.
+1. **Token Generation:** On successful login (`POST /auth/login`), `JwtTokenProvider` generates a signed JWT whose subject is the `userId` and which carries `userId`, `userName`, `userEmail`, and `userRole` as claims. The token is returned to the client inside the `LoginResponseDto` (`{ token, id, name, role }`).
+2. **Token Transmission:** The frontend stores the login response object in `localStorage` under the key `user` (a JSON object `{ token, id, name, role }`) and attaches the token to every API call via the standard `Authorization: Bearer <token>` header using the `apiFetch()` utility in `app.js`.
+3. **Request Filtering:** `JwtAuthFilter` extends `OncePerRequestFilter`. Its `shouldNotFilter` bypasses only `/auth/login` and `/auth/signup` (so `/auth/me` still runs the filter). It extracts the token from the `Authorization` header, validates the signature and expiration via `JwtTokenProvider`, and constructs a `UsernamePasswordAuthenticationToken` with the user's authorities. It also sets request attributes `userId`, `userName`, and `userRole` — some controllers read these attributes instead of `@AuthenticationPrincipal`.
 4. **Authority Binding:** The `Role` enum values (`SEEKER`, `EMPLOYER`, `ADMIN`) are prefixed with `ROLE_` when set as granted authorities — e.g., `ROLE_SEEKER`. This follows Spring Security's default role-voting convention.
-5. **Context Propagation:** The authentication object is set on the `SecurityContextHolder`, making it accessible in controllers via `@AuthenticationPrincipal` or `SecurityContextHolder.getContext().getAuthentication()`.
+5. **Context Propagation:** The authentication object is set on the `SecurityContextHolder`, making it accessible in controllers via `@AuthenticationPrincipal`, `SecurityContextHolder.getContext().getAuthentication()`, or the request attributes set by the filter.
 
-### SecurityConfig Filter Chain
+### SecurityConfig Filter Chain & Method Security
 
-`SecurityConfig` defines which endpoints are public vs. protected:
-- **Public:** `POST /auth/signup`, `POST /auth/login`, `GET /jobs`, `GET /jobs/{id}`
-- **Seeker:** `POST /applications`, `GET /applications` (when role is SEEKER), resume upload endpoints
-- **Employer:** `POST /jobs`, `DELETE /jobs/{id}` (own only), `GET /applications` (when role is EMPLOYER), `POST /applications/update-status`, resume download
-- **Admin:** `GET /admin/users`, `DELETE /admin/jobs/{id}`
-- All other requests require authentication by default.
+`SecurityConfig` only distinguishes public from authenticated endpoints in the filter chain; the actual per-role authorization is done with **method security** (`@EnableMethodSecurity` on `SecurityConfig` plus `@PreAuthorize` annotations on controller methods).
+
+**Filter chain (`authorizeHttpRequests`):**
+- `OPTIONS /**` — permitAll (CORS preflight).
+- `/auth/**` — permitAll.
+- Static pages (the `*.html` files) plus `/style.css` and `/app.js` — permitAll.
+- `GET /jobs` and `GET /jobs/**` — permitAll.
+- `anyRequest().authenticated()` — every other endpoint merely requires authentication.
+
+**`@PreAuthorize` annotations (the real per-role rules):**
+- `JobController`: `POST /jobs` → `hasRole('EMPLOYER')`; `DELETE /jobs/{id}` → `hasAnyRole('EMPLOYER','ADMIN')`; GET endpoints public.
+- `ApplicationController`: `POST /applications` → `hasRole('SEEKER')`; `GET /applications` → `hasAnyRole('SEEKER','EMPLOYER')`; `POST /applications/update-status` → `hasRole('EMPLOYER')`.
+- `ResumeController`: `POST /upload-resume` and `GET /my-resume` → `hasRole('SEEKER')`; `GET /resume/{seekerId}` → `hasAnyRole('ADMIN','EMPLOYER')`.
+- `AdminController`: class-level `hasRole('ADMIN')`.
 
 > **Note:** CSRF is disabled because this is a stateless JWT API — there are no session cookies to protect.
 
@@ -40,7 +48,7 @@ The project uses a **stateless JWT authentication architecture**:
 
 - The `Role` Java enum defines three values: `SEEKER`, `EMPLOYER`, `ADMIN`.
 - The `User` entity holds a `@Enumerated(EnumType.STRING)` field, storing the role as a clean string (`"SEEKER"`, not an ordinal) in the database.
-- In `JwtAuthFilter`, the role is converted to a `SimpleGrantedAuthority` with the `ROLE_` prefix to integrate with Spring Security's `hasRole()` expressions in the filter chain.
+- In `JwtAuthFilter`, the role is converted to a `SimpleGrantedAuthority` with the `ROLE_` prefix to integrate with Spring Security's `hasRole()` expressions used in the `@PreAuthorize` method-security annotations.
 
 ---
 
@@ -64,6 +72,12 @@ The project uses a **stateless JWT authentication architecture**:
 
 ## 6. Resume Download
 
+### Access Control
+
+`GET /resume/{seekerId}` is restricted to `ADMIN` and `EMPLOYER` (`@PreAuthorize`), with an additional service-level ownership check: an EMPLOYER may only download the resume of a candidate who has applied to one of **their own** job postings (verified via `applicationRepository.existsByJobEmployerIdAndSeekerId(...)`); ADMINs may download any resume. A 403 is returned if an employer requests a resume for a seeker who has not applied to one of their jobs.
+
+### Frontend Mechanics
+
 Since resume downloads require JWT authentication (via the `Authorization` header), a standard HTML `<a href="/resume/123">` link won't work because anchor clicks cannot attach custom headers.
 
 ### Frontend Implementation
@@ -80,7 +94,7 @@ Inside `employer-dashboard.html`, the download triggers a JavaScript method:
 ## 7. Service-Layer Ownership Guardrails
 
 Employer-facing endpoints perform explicit ownership validation in the service layer:
-- **Viewing applicants:** `ApplicationService` verifies that the `job.employerId` matches the authenticated employer's ID before returning applicant data. Returns a 403 if mismatched.
+- **Viewing applicants:** `ApplicationService` verifies that the `job.employer` matches the authenticated employer before returning applicant data. Returns a 403 if mismatched.
 - **Updating status:** `ApplicationService` performs the same ownership check before allowing status changes.
 - **Deleting jobs:** `JobService` ensures only the owning employer (or an admin) can delete a job listing.
 
@@ -90,9 +104,9 @@ This means even if a malicious employer guesses another employer's job ID, the s
 
 ## 8. Duplicate Application Prevention
 
-- `ApplicationService` checks for an existing `Application` record with the matching `seekerId` and `jobId` pair before creating a new one.
+- `ApplicationService` checks for an existing `Application` via `applicationRepository.existsByJobIdAndSeekerId(...)` before creating a new one.
 - If a duplicate is found, a conflict response (typically 409) is returned.
-- This is enforced at the service level, not just via database unique constraints, allowing a clean error message to be returned to the client.
+- This is enforced both at the service level (allowing a clean error message to be returned to the client) **and** by a database unique constraint `uq_application_job_seeker` on (`job_id`, `seeker_id`) as a safety net.
 
 ---
 
@@ -150,5 +164,6 @@ const debouncedSearch = debounce(loadJobs, 500);
 ## 14. CORS Configuration
 
 - **Config location:** CorsConfig.java
-- **Purpose:** Allows the bundled static frontend (served from `http://localhost:8080`) to communicate with the API. Also supports external frontend origins during development if needed.
-- **Key settings:** The `Authorization` header is explicitly allowed in `allowedHeaders` so that JWT-bearing requests pass the preflight `OPTIONS` check.
+- **Purpose:** Allows the bundled static frontend (served from `http://localhost:8080`) and local dev servers to communicate with the API.
+- **Allowed origins:** exactly `http://localhost:5500`, `http://127.0.0.1:5500`, and `http://localhost:8080`. There are no production domains.
+- **Key settings:** Allowed methods are GET, POST, PUT, DELETE, OPTIONS, PATCH; `allowedHeaders` is `*` (so JWT-bearing requests pass the preflight `OPTIONS` check); `allowCredentials` is true.

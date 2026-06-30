@@ -13,7 +13,7 @@ This version replaces the previous session-based authentication with a modern **
 - ✅ **Stateless Architecture** — No server-side session storage; every request carries a self-contained token.
 - ✅ **Custom JWT Filter** — `JwtAuthFilter` validates tokens on every request and binds user roles into Spring Security context.
 - ✅ **BCrypt Password Hashing** — All passwords hashed with `BCryptPasswordEncoder`; never stored in plaintext.
-- ✅ **Granular Role-Based Access** — `SecurityConfig` enforces distinct endpoint access patterns per role (`ROLE_SEEKER`, `ROLE_EMPLOYER`, `ROLE_ADMIN`).
+- ✅ **Granular Role-Based Access** — `@PreAuthorize` method-security annotations on controller methods enforce distinct access rules per role (`ROLE_SEEKER`, `ROLE_EMPLOYER`, `ROLE_ADMIN`).
 - ✅ **Automated Admin Seeding** — Default admin account created on startup via `DataInitializer`; no manual SQL insertion.
 
 ---
@@ -34,7 +34,7 @@ This version replaces the previous session-based authentication with a modern **
 ## Core Features
 
 - **Stateless JWT Authentication** — Custom `JwtAuthFilter` intercepts requests, validates tokens via `JwtTokenProvider`, and binds role-based authorities into the Spring Security context.
-- **Role-Based Filter Chain** — `SecurityConfig` enforces distinct endpoint access patterns per role, rejecting unauthorized requests at the framework level.
+- **Role-Based Method Security** — `SecurityConfig` enables `@EnableMethodSecurity`, and `@PreAuthorize` annotations on controller methods enforce distinct access rules per role, rejecting unauthorized requests at the framework level.
 - **BCrypt Password Hashing** — All passwords hashed on registration and verified on login. No plaintext storage.
 - **Automated Admin Seeding** — `DataInitializer` (using `CommandLineRunner`) creates the default administrator account on startup.
 - **Service-Layer Ownership Guardrails** — Employers can only view applicants and update statuses on job listings they explicitly own. Server-side validation prevents cross-employer tampering.
@@ -78,10 +78,9 @@ CREATE DATABASE job_portal;
 
 ```bash
 cd backend/src/main/resources
-cp application.properties.example application.properties
 ```
 
-Update `application.properties` with your MySQL credentials and JWT secret:
+Edit `application.properties` directly with your MySQL credentials and JWT secret:
 
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/job_portal
@@ -89,8 +88,9 @@ spring.datasource.username=<your_username>
 spring.datasource.password=<your_password>
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=false
-jwt.secret=<your_secure_secret_key>
+jwt.secretKey=<your_secure_secret_key>
 jwt.expiration=86400000
+file.upload-dir=uploads
 ```
 
 ### 3. Build and Run
@@ -140,7 +140,7 @@ The API (and bundled frontend) will be available at **`http://localhost:8080`**.
 |:---|:---|:---|:---|
 | POST | `/upload-resume` | Seeker | Upload a resume (PDF/DOCX, max 5 MB) |
 | GET | `/my-resume` | Seeker | Check resume upload status |
-| GET | `/resume/{seekerId}` | Employer | Download a seeker's resume |
+| GET | `/resume/{seekerId}` | Employer / Admin | Download a seeker's resume (employer limited to applicants of their own jobs) |
 
 ### Administration
 
@@ -168,7 +168,7 @@ Client                          Server
   │  { email, password }          │
   │──────────────────────────────>│
   │                               │  Verify BCrypt match
-  │                               │  Generate JWT (payload: id, email, role)
+  │                               │  Generate JWT (subject=userId; claims: userId, userName, userEmail, userRole)
   │  { token: "eyJ..." }          │
   │<──────────────────────────────│
   │                               │
@@ -200,8 +200,8 @@ Client                          Server
 
 1. **JWT Validation** — Every request is validated via `JwtAuthFilter` before reaching controllers.
 2. **BCrypt Hashing** — Passwords are never stored in plaintext.
-3. **Role-Based Authorization** — Spring Security enforces role-based access at the filter chain level.
-4. **CORS Configuration** — Configured to allow frontend requests while restricting unauthorized domains.
+3. **Role-Based Authorization** — Spring Security enforces role-based access via `@PreAuthorize` method-security annotations on controller methods.
+4. **CORS Configuration** — Configured to allow the local frontend origins (`localhost:5500`, `127.0.0.1:5500`, `localhost:8080`) while restricting unauthorized domains.
 5. **Input Sanitization** — `ValidationUtils` validates emails, passwords, and job data before persistence.
 
 ### Testing
