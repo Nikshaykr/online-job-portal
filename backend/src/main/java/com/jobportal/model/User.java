@@ -2,10 +2,12 @@ package com.jobportal.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -43,6 +45,11 @@ public class User implements UserDetails {
     // nullable = true means this column can be empty (user hasn't uploaded yet)
     @Column(nullable = true)
     private String resumePath;
+
+    // Set automatically by Hibernate on first persist; never updated afterward.
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     public User(String name, String email, String password, Role role) {
         this.name = name;

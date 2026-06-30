@@ -1,6 +1,8 @@
 package com.jobportal.controller;
 
+import com.jobportal.model.Role;
 import com.jobportal.model.User;
+import com.jobportal.repository.ApplicationRepository;
 import com.jobportal.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +31,7 @@ import java.util.Map;
 public class ResumeController {
 
     private final UserRepository userRepository;
+    private final ApplicationRepository applicationRepository;
 
     // Inject the upload folder path from application.properties
     // Value("${file.upload-dir}") reads the key 'file.upload-dir' → "uploads"
@@ -89,7 +92,16 @@ public class ResumeController {
     // ── GET /resume/{seekerId} ────────────────────────────────────────────────
     @GetMapping("/resume/{seekerId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYER')")
-    public ResponseEntity<?> downloadResume(@PathVariable Long seekerId) {
+    public ResponseEntity<?> downloadResume(@PathVariable Long seekerId,
+                                            @AuthenticationPrincipal User requester) {
+
+        // Ownership guardrail: an employer may only download resumes of candidates who
+        // have applied to one of their own job postings. Admins may download any resume.
+        if (requester.getRole() == Role.EMPLOYER
+                && !applicationRepository.existsByJobEmployerIdAndSeekerId(requester.getId(), seekerId)) {
+            return ResponseEntity.status(403).body(
+                    Map.of("error", "You can only view resumes of candidates who applied to your job postings"));
+        }
 
         User user = userRepository.findById(seekerId)
                 .orElseThrow(() -> new RuntimeException("User not found"));

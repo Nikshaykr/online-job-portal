@@ -13,4 +13,8 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<Application> findBySeekerId(Long seekerId);
 
     List<Application> findByJobEmployerId(Long employerId);
+
+    // True if the given seeker has applied to at least one job owned by the given employer.
+    // Backs the ownership guardrail on resume downloads.
+    boolean existsByJobEmployerIdAndSeekerId(Long employerId, Long seekerId);
 }

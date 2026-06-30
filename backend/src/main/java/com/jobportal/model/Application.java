@@ -5,7 +5,15 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "applications")
+@Table(
+        name = "applications",
+        // Enforce one application per (job, seeker) pair at the database level,
+        // backing the service-layer duplicate check as defence in depth.
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_application_job_seeker",
+                columnNames = {"job_id", "seeker_id"}
+        )
+)
 @Data
 public class Application {
 
@@ -21,6 +29,6 @@ public class Application {
     @JoinColumn(name = "seeker_id", nullable = false)
     private User seeker; // Replaced Long seekerId
 
-    private String status; // PENDING, SHORTLISTED, REJECTED, ACCEPTED
+    private String status; // Applied (default), Shortlisted, Rejected
     private LocalDate appliedDate;
 }
